@@ -1,6 +1,7 @@
 ---
 name: browser-verify
 description: Этот скилл используется, когда нужно проверить страницу в реальном браузере — выполнить JS на странице, снять скриншот (в т.ч. мобильную версию), замерить скорость и Core Web Vitals, проверить отрендеренные мета-теги и микроразметку SPA-сайта, прогнать axe-аудит доступности, посмотреть cookies/localStorage/сеть. Автоматизация Chrome через DevTools Protocol без внешних зависимостей.
+user-invocable: false
 license: Apache-2.0
 compatibility: Требуется Chrome/Chromium и Node 22+. npm install не нужен.
 metadata:
