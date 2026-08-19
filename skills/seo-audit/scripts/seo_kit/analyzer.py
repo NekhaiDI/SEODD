@@ -2,6 +2,7 @@
 """
 Извлекает SEO-метрики из одной HTML-страницы.
 """
+import json as json_lib
 import re
 from urllib.parse import urlparse
 
@@ -10,6 +11,34 @@ from bs4 import BeautifulSoup
 
 def _clean_text(text):
     return re.sub(r"\s+", " ", text or "").strip()
+
+
+def _extract_schema_types(soup):
+    """Собирает типы schema.org: из JSON-LD (@type, включая @graph и списки)
+    и из microdata (itemtype). Вызывать ДО decompose() script-тегов."""
+    types = set()
+    for tag in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        try:
+            data = json_lib.loads(tag.string or "")
+        except Exception:
+            continue
+        stack = [data]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, list):
+                stack.extend(node)
+            elif isinstance(node, dict):
+                t = node.get("@type")
+                if isinstance(t, str):
+                    types.add(t)
+                elif isinstance(t, list):
+                    types.update(x for x in t if isinstance(x, str))
+                stack.extend(node.values())
+    for el in soup.find_all(attrs={"itemtype": True}):
+        itemtype = el.get("itemtype", "")
+        if "schema.org" in itemtype:
+            types.add(itemtype.rstrip("/").split("/")[-1])
+    return sorted(types)
 
 
 def analyze_page(page, thin_content_word_threshold=150):
@@ -67,20 +96,19 @@ def analyze_page(page, thin_content_word_threshold=150):
         else:
             external_links += 1
 
+    # Structured data (schema.org) — типы разметки.
+    # Важно: до decompose() script-тегов, иначе JSON-LD уже удалён из DOM.
+    schema_types = _extract_schema_types(soup)
+    has_schema_org = bool(schema_types)
+
+    # Open Graph
+    has_og_tags = bool(soup.find("meta", attrs={"property": re.compile("^og:", re.I)}))
+
     # Текст страницы (видимый) и количество слов
     for tag in soup(["script", "style", "noscript", "template"]):
         tag.decompose()
     visible_text = _clean_text(soup.get_text(separator=" "))
     word_count = len(visible_text.split()) if visible_text else 0
-
-    # Structured data (schema.org) — просто факт наличия
-    has_schema_org = bool(
-        soup.find("script", attrs={"type": "application/ld+json"})
-        or soup.find(attrs={"itemtype": re.compile("schema.org", re.I)})
-    )
-
-    # Open Graph
-    has_og_tags = bool(soup.find("meta", attrs={"property": re.compile("^og:", re.I)}))
 
     return {
         "url": page.get("url"),
@@ -120,6 +148,9 @@ def analyze_page(page, thin_content_word_threshold=150):
         "is_thin_content": word_count < thin_content_word_threshold,
 
         "has_schema_org": has_schema_org,
+        "schema_types": schema_types,
+        "has_product_schema": bool({"Product", "Offer", "AggregateOffer"} & set(schema_types)),
+        "has_faq_schema": "FAQPage" in schema_types,
         "has_og_tags": has_og_tags,
     }
 

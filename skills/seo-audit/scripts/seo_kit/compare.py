@@ -50,6 +50,8 @@ def summarize_site(name, url, pages_data):
         "pct_missing_canonical": pct(lambda p: not p["has_canonical"]),
         "pct_noindex": pct(lambda p: p["is_noindex"]),
         "pct_has_schema_org": pct(lambda p: p["has_schema_org"]),
+        "pct_product_schema": pct(lambda p: p.get("has_product_schema")),
+        "pct_faq_schema": pct(lambda p: p.get("has_faq_schema")),
         "pct_has_og_tags": pct(lambda p: p["has_og_tags"]),
         "pct_images_missing_alt": round(
             100 * sum(p["images_missing_alt"] for p in pages_data)
@@ -84,6 +86,8 @@ def build_comparison(site_summaries):
         ("pct_missing_canonical", "% страниц без canonical", "lower_better"),
         ("pct_noindex", "% страниц с noindex", "neutral"),
         ("pct_has_schema_org", "% страниц с микроразметкой schema.org", "higher_better"),
+        ("pct_product_schema", "% страниц с Product/Offer-разметкой", "higher_better"),
+        ("pct_faq_schema", "% страниц с FAQ-разметкой", "higher_better"),
         ("pct_has_og_tags", "% страниц с Open Graph тегами", "higher_better"),
         ("pct_images_missing_alt", "% изображений без alt", "lower_better"),
         ("duplicate_titles_count", "Дублей title (страниц)", "lower_better"),
@@ -93,6 +97,8 @@ def build_comparison(site_summaries):
         ("avg_meta_description_length", "Средняя длина meta description (симв.)", "neutral"),
         ("avg_response_time_ms", "Среднее время ответа (мс)", "lower_better"),
         ("broken_pages_count", "Битых страниц (4xx/5xx)", "lower_better"),
+        ("ai_search_bots", "AI-поисковые боты разрешены (robots.txt)", "neutral"),
+        ("ai_llms_txt", "llms.txt на сайте", "neutral"),
     ]
 
     rows = []

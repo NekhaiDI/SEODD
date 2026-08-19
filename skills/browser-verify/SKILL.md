@@ -111,6 +111,10 @@ node "$SCRIPTS/cdp.mjs" screenshot --output /tmp/mobile.png
   DOM-запросы, консоль и сеть — дешевле и точнее.
 - Элементы автоматически прокручиваются в зону видимости перед действием.
 - Захват консоли/сети — по-сессионный (на каждый `navigate`).
+- Windows: `chrome-launcher.sh` — bash-скрипт, запускать из Git Bash.
+  Альтернатива — стартовать Chrome вручную:
+  `chrome.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\cdp-profile`,
+  после чего `cdp.mjs` работает как обычно.
 
 ## Справочник
 

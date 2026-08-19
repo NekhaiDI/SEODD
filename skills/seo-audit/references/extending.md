@@ -15,6 +15,7 @@
 | `seo_kit/crawler.py` | обход: sitemap → BFS, robots.txt, нормализация URL | анализ страниц фильтров (query-параметры), поддомены |
 | `seo_kit/analyzer.py` | метрики одной страницы (`analyze_page`) | новая метрика страницы |
 | `seo_kit/compare.py` | агрегаты по сайту + таблица сравнения | новый агрегат, новая строка сравнения |
+| `seo_kit/ai_visibility.py` | AI-боты в robots.txt, llms.txt | новый AI-бот в таблицу `AI_BOTS`, новая site-level проверка |
 | `seo_kit/report.py` | HTML- и Excel-отчёты, `collect_problem_pages` | новая секция отчёта, новая колонка Excel |
 | `seo.py` | CLI-команды, пайплайн `run`, сводка summary JSON | новая подкоманда |
 

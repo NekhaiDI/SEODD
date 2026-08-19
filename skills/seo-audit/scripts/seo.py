@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "requests>=2.31",
 #   "beautifulsoup4>=4.12",
@@ -49,6 +49,7 @@ from seo_kit.crawler import crawl_site
 from seo_kit.analyzer import analyze_pages
 from seo_kit.compare import summarize_site, build_comparison
 from seo_kit.report import generate_html_report, generate_excel_report, collect_problem_pages
+from seo_kit.ai_visibility import check_site as check_ai_visibility
 
 
 def cmd_init(args):
@@ -174,11 +175,17 @@ def cmd_run(args):
 
     all_pages_data_by_site = {}
     site_summaries = []
+    ai_visibility_by_site = {}
 
     for site in sites_to_crawl:
         name, url = site["name"], site["url"]
         print(f"\n=== {name} ({url}) ===")
         pages = crawl_site(name, url, cfg, max_pages=args.max_pages)
+        if not pages:
+            print(f"[{name}] ВНИМАНИЕ: собрано 0 страниц. Возможные причины: "
+                  f"анти-бот защита (Cloudflare и т.п.), запрет в robots.txt, "
+                  f"SPA без серверного HTML или сайт недоступен. "
+                  f"Проверь сайт вручную (curl / браузер).")
         pages_data = analyze_pages(pages, threshold)
 
         raw_path = os.path.join(data_dir, f"{name}_{timestamp}.json")
@@ -186,8 +193,19 @@ def cmd_run(args):
             json.dump(pages_data, f, ensure_ascii=False, indent=2)
         print(f"[{name}] Сырые данные сохранены: {raw_path}")
 
+        # AI-видимость: политика robots.txt по AI-ботам + llms.txt
+        try:
+            ai = check_ai_visibility(url, timeout=cfg["request_timeout"])
+        except Exception:
+            ai = {}
+        ai_visibility_by_site[name] = ai
+
         all_pages_data_by_site[name] = pages_data
-        site_summaries.append(summarize_site(name, url, pages_data))
+        summary = summarize_site(name, url, pages_data)
+        if ai:
+            summary["ai_search_bots"] = f"{ai['search_bots_allowed']}/{ai['search_bots_total']}"
+            summary["ai_llms_txt"] = "да" if ai["has_llms_txt"] else "нет"
+        site_summaries.append(summary)
 
     comparison = build_comparison(site_summaries)
 
@@ -213,6 +231,7 @@ def cmd_run(args):
             "rows": comparison["rows"],
         },
         "site_summaries": comparison["raw"],
+        "ai_visibility": ai_visibility_by_site,
         "my_site_problem_pages": collect_problem_pages(
             all_pages_data_by_site[my_site_name], limit=100
         ),

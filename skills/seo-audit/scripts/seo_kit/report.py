@@ -177,8 +177,8 @@ def generate_excel_report(comparison, all_pages_data_by_site, out_path):
             "url", "status_code", "title", "title_length", "has_title",
             "meta_description_length", "has_meta_description",
             "h1_count", "h1_text", "word_count", "is_thin_content",
-            "has_canonical", "images_missing_alt", "internal_links",
-            "external_links", "response_time_ms",
+            "has_canonical", "has_product_schema", "images_missing_alt",
+            "internal_links", "external_links", "response_time_ms",
         ]
         for c_idx, col in enumerate(columns, start=1):
             cell = ws2.cell(row=1, column=c_idx, value=col)
