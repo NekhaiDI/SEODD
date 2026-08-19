@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "seodd",
+  "description": "SEO-аудит сайта и сравнение с конкурентами: автоматический краулер, отчёты HTML/Excel и приоритизированный план работ.",
+  "owner": {
+    "name": "Дмитрий Нехай",
+    "url": "https://github.com/NekhaiDI"
+  },
+  "plugins": [
+    {
+      "name": "seo-audit-kit",
+      "source": "./",
+      "description": "SEO-аудит сайта и сравнение с конкурентами. Краулер обходит твой сайт и сайты конкурентов, собирает метрики каждой страницы (title, description, H1, объём текста, canonical, alt, микроразметка, скорость ответа), строит HTML- и Excel-отчёты и превращает цифры в план работ: что чинить на этой неделе, а что закладывать в квартал. Конкуренты добавляются одной фразой, без правки конфигов.",
+      "author": {
+        "name": "Дмитрий Нехай",
+        "url": "https://github.com/NekhaiDI"
+      },
+      "category": "marketing",
+      "homepage": "https://github.com/NekhaiDI/SEODD"
+    }
+  ]
+}
