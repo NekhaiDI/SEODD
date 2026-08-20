@@ -2,6 +2,7 @@
 """
 Извлекает SEO-метрики из одной HTML-страницы.
 """
+import hashlib
 import json as json_lib
 import re
 from urllib.parse import urlparse
@@ -110,12 +111,32 @@ def analyze_page(page, thin_content_word_threshold=150):
     visible_text = _clean_text(soup.get_text(separator=" "))
     word_count = len(visible_text.split()) if visible_text else 0
 
+    # noindex может стоять не только в meta, но и в HTTP-заголовке X-Robots-Tag.
+    # Проверять только meta — значит проглядеть закрытую от индексации страницу.
+    x_robots = (page.get("x_robots_tag") or "").lower()
+    noindex_meta = "noindex" in meta_robots.lower()
+    noindex_header = "noindex" in x_robots
+    noindex_source = ", ".join(
+        s for s, on in (("meta robots", noindex_meta), ("X-Robots-Tag", noindex_header)) if on
+    )
+
+    # Хэш видимого текста — для поиска страниц с полностью совпадающим
+    # содержимым (скопированные описания товаров и т.п.).
+    text_hash = hashlib.md5(visible_text.lower().encode("utf-8")).hexdigest() if visible_text else ""
+
     return {
         "url": page.get("url"),
         "final_url": page.get("final_url"),
         "status_code": page.get("status_code"),
         "depth": page.get("depth"),
         "response_time_ms": page.get("response_time_ms"),
+        "page_bytes": page.get("page_bytes"),
+        "found_on": page.get("found_on"),
+
+        "is_redirect": bool(page.get("is_redirect")),
+        "redirect_to": page.get("redirect_to", ""),
+        "redirect_chain": page.get("redirect_chain", 0),
+        "redirect_status": page.get("redirect_status"),
 
         "title": title,
         "title_length": len(title),
@@ -126,7 +147,9 @@ def analyze_page(page, thin_content_word_threshold=150):
         "has_meta_description": bool(meta_description),
 
         "meta_robots": meta_robots,
-        "is_noindex": "noindex" in meta_robots.lower(),
+        "x_robots_tag": page.get("x_robots_tag", ""),
+        "is_noindex": noindex_meta or noindex_header,
+        "noindex_source": noindex_source,
 
         "canonical": canonical,
         "has_canonical": bool(canonical),
@@ -146,6 +169,7 @@ def analyze_page(page, thin_content_word_threshold=150):
 
         "word_count": word_count,
         "is_thin_content": word_count < thin_content_word_threshold,
+        "text_hash": text_hash,
 
         "has_schema_org": has_schema_org,
         "schema_types": schema_types,

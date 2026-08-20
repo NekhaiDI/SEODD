@@ -37,6 +37,25 @@ def summarize_site(name, url, pages_data):
 
     broken = [p for p in pages_data if p["status_code"] and p["status_code"] >= 400]
 
+    # Дубли текста: страницы с полностью совпадающим видимым содержимым.
+    # Ловит скопированные описания товаров, которые дубли title/description
+    # не показывают. Битые страницы и страницы за редиректом не считаем:
+    # у всех 404 общий шаблон, а редирект-пары дублируют конечную страницу —
+    # это уже посчитано в broken/redirects, здесь было бы двойным счётом.
+    hashes = [p.get("text_hash") for p in pages_data
+              if p.get("text_hash")
+              and p.get("status_code") == 200
+              and not p.get("is_redirect")]
+    hash_counts = Counter(hashes)
+    duplicate_bodies = sum(c for c in hash_counts.values() if c > 1)
+
+    redirects = [p for p in pages_data if p.get("is_redirect")]
+
+    # None, а не 0, когда page_bytes нет ни у одной страницы (данные старого
+    # прогона): иначе сайт со старыми данными «выигрывает» метрику с нулём.
+    page_bytes = [p["page_bytes"] for p in pages_data if p.get("page_bytes")]
+    avg_page_kb = round(sum(page_bytes) / len(page_bytes) / 1024, 1) if page_bytes else None
+
     return {
         "name": name,
         "url": url,
@@ -60,6 +79,11 @@ def summarize_site(name, url, pages_data):
 
         "duplicate_titles_count": duplicate_titles,
         "duplicate_descriptions_count": duplicate_descriptions,
+        "duplicate_bodies_count": duplicate_bodies,
+
+        "redirects_count": len(redirects),
+        "pct_redirects": pct(lambda p: p.get("is_redirect")),
+        "avg_page_kb": avg_page_kb,
 
         "avg_word_count": avg_word_count,
         "avg_title_length": avg_title_length,
@@ -68,6 +92,13 @@ def summarize_site(name, url, pages_data):
 
         "broken_pages_count": len(broken),
         "broken_pages": [p["url"] for p in broken][:50],
+        # Откуда ведёт ссылка на битую страницу — без этого непонятно,
+        # что править: sitemap или конкретную страницу с ссылкой.
+        "broken_pages_detail": [
+            {"url": p["url"], "status": p["status_code"], "found_on": p.get("found_on")}
+            for p in broken
+        ][:200],
+        "broken_from_sitemap": sum(1 for p in broken if p.get("found_on") == "sitemap"),
     }
 
 
@@ -96,7 +127,12 @@ def build_comparison(site_summaries):
         ("avg_title_length", "Средняя длина title (симв.)", "neutral"),
         ("avg_meta_description_length", "Средняя длина meta description (симв.)", "neutral"),
         ("avg_response_time_ms", "Среднее время ответа (мс)", "lower_better"),
+        ("avg_page_kb", "Средний вес HTML (КБ)", "lower_better"),
         ("broken_pages_count", "Битых страниц (4xx/5xx)", "lower_better"),
+        ("broken_from_sitemap", "Битых страниц из sitemap", "lower_better"),
+        ("redirects_count", "Страниц за редиректом", "lower_better"),
+        ("duplicate_bodies_count", "Дублей текста страницы", "lower_better"),
+        ("sitemap_age_days", "Sitemap обновлён (дней назад)", "lower_better"),
         ("ai_search_bots", "AI-поисковые боты разрешены (robots.txt)", "neutral"),
         ("ai_llms_txt", "llms.txt на сайте", "neutral"),
     ]
