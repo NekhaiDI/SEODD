@@ -32,25 +32,31 @@ def _get_robots_parser(base_url, session, timeout):
 
 
 def _parse_lastmod(text):
-    """'2025-06-25T09:11:41+03:00' -> datetime (tz-aware) или None."""
+    """
+    '2025-06-25T09:11:41+03:00' или '2026-08-12' -> datetime (всегда tz-aware).
+
+    Дата без времени даёт naive-datetime, который потом нельзя ни сравнить,
+    ни вычесть из tz-aware «сейчас» — Python бросает TypeError. Поэтому
+    любой разобранный datetime здесь достраивается до tz-aware (UTC).
+    """
     if not text:
         return None
     text = text.strip()
+    parsed = None
     try:
-        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
-        # fromisoformat разбирает и дату без зоны ('2025-06-25' — самый
-        # частый формат lastmod). Naive-датавремя нельзя сравнивать с aware:
-        # max()/вычитание упадут, а except выше по стеку молча выбросит
-        # весь sitemap. Поэтому всегда приводим к aware.
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
-        pass
-    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            return datetime.strptime(text[:len(fmt) + 2], fmt).replace(tzinfo=timezone.utc)
-        except ValueError:
-            continue
-    return None
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+            try:
+                parsed = datetime.strptime(text[:len(fmt) + 2].rstrip("T"), fmt)
+                break
+            except ValueError:
+                continue
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _try_sitemap_urls(base_url, session, timeout):
@@ -267,8 +273,15 @@ def crawl_site(name, base_url, cfg, max_pages=None, verbose=True,
             print(f"[{name}] Ищу sitemap.xml ...")
         try:
             sitemap_urls, sitemap_info = _try_sitemap_urls(base_url, session, timeout)
-        except Exception:
+        except Exception as exc:
+            # Не заглушать молча: без sitemap обход идёт по ссылкам с главной,
+            # то есть собирает другую выборку. Это должно быть видно в логе,
+            # иначе баг разбора карты выглядит как «у сайта нет sitemap».
             sitemap_urls, sitemap_info = [], {"found": False, "urls_total": 0}
+            if verbose:
+                print(f"[{name}] ОШИБКА разбора sitemap: {type(exc).__name__}: {exc}")
+                print(f"[{name}] Перехожу на обход по ссылкам — выборка будет "
+                      f"иной, чем у сайтов с прочитанной картой.")
 
         queue = deque()
         if sitemap_urls:
